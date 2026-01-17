@@ -113,26 +113,20 @@ const COMMERCIAL_PROJECTS = [
     images: ["/src/assets/proj19a.jpeg", "/src/assets/proj19b.jpeg"],
     videos: [
       {
-        src: "/src/assets/44.mp4",
+        src: "https://res.cloudinary.com/drpj52sog/video/upload/f_auto,q_auto/44_elejqr.mp4",
         title: "Before Our Work",
         city: "Brampton, ON",
         description:
           "Overview of the space before preparation, repairs, and painting work began.",
       },
       {
-        src: "/src/assets/46.mp4",
+        src: "https://res.cloudinary.com/drpj52sog/video/upload/f_auto,q_auto/46_uwllcd.mp4",
         title: "After Our Work",
         city: "Brampton, ON",
         description:
           "Completed interior after ceiling, steel, and ductwork painting with a clean professional finish.",
       },
-      {
-        src: "/src/assets/45.mp4",
-        title: "Final Walkthrough",
-        city: "Brampton, ON",
-        description:
-          "Final walkthrough showcasing the finished ceiling, clean lines, and overall showroom-ready appearance.",
-      },
+      
     ],
   },
 ];
