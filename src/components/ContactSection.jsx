@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { contact, site, serviceOptions, cityOptions } from "../data/siteData";
 
-// ✅ API base (Render env var recommended)
+
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
