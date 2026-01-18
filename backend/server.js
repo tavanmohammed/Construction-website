@@ -34,7 +34,7 @@ app.use(express.json());
 app.use("/api/contact", contactRoute);
 
 app.get("/", (req, res) => {
-  res.send("Buildara Group API is running ✅");
+  res.send("Buildara Group API is running ");
 });
 
 /* =========================
