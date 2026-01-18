@@ -5,28 +5,41 @@ import "dotenv/config";
 
 const app = express();
 
-// Allow local + production frontend
-const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:5173", "https://buildaragroup.ca","https://www.buildaragroup.ca", ].filter(Boolean);
+/* =========================
+   CORS — MUST be first
+   ========================= */
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "https://buildaragroup.ca",
+  "https://www.buildaragroup.ca",
+].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true); // allow no-origin requests
+      if (!origin) return cb(null, true);
       if (allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error("Not allowed by CORS"));
+      return cb(new Error("CORS blocked"));
     },
-    credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
   })
 );
 
+// 👇 REQUIRED for preflight
+app.options("*", cors());
+
+/* ========================= */
+
 app.use(express.json());
 
-// API route
+// Routes
 app.use("/api/contact", contactRoute);
 
 // Health check
 app.get("/", (req, res) => res.send("API is running"));
 
-// Render uses process.env.PORT
+// Render PORT
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.listen(PORT, () => console.log("Server running on", PORT));
