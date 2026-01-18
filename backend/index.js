@@ -6,7 +6,7 @@ import "dotenv/config";
 const app = express();
 
 // Allow local + production frontend
-const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:5173"].filter(Boolean);
+const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:5173", "https://buildaragroup.ca","https://www.buildaragroup.ca", ].filter(Boolean);
 
 app.use(
   cors({
