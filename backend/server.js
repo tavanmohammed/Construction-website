@@ -11,7 +11,7 @@ const app = express();
    - Local dev: http://localhost:5173
    - Production: set FRONTEND_URL on Render (your deployed frontend URL)
 ========================= */
-const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:5173"].filter(
+const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:5173", "https://buildaragroup.ca","https://www.buildaragroup.ca",].filter(
   Boolean
 );
 
