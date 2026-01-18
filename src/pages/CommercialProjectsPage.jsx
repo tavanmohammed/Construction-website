@@ -7,9 +7,9 @@ import { useEffect, useRef, useState } from "react";
 function CommercialHero() {
   return (
     <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-black">
-      {/* Background image */}
+      {/* Background image from public/images */}
       <img
-        src="/src/assets/proj18e.jpg"
+        src="/images/proj18e.jpg"
         alt="Commercial renovation projects"
         className="absolute inset-0 h-full w-full object-cover"
       />
@@ -42,13 +42,13 @@ const COMMERCIAL_PROJECTS = [
     description:
       "This commercial renovation included full interior painting, wall and ceiling finishing, custom millwork, and modern lighting installation. The project features upgraded flooring, glass partitions, built-in shelving, and refined detailing throughout open work areas, lounges, and meeting spaces. The result is a clean, modern, and professional interior designed for both functionality and visual impact.",
     images: [
-      "/src/assets/proj18a.jpg",
-      "/src/assets/proj18b.jpg",
-      "/src/assets/proj18c.jpg",
-      "/src/assets/proj18d.jpg",
-      "/src/assets/proj18e.jpg",
-      "/src/assets/proj18f.jpg",
-      "/src/assets/proj18g.jpg",
+      "/images/proj18a.jpg",
+      "/images/proj18b.jpg",
+      "/images/proj18c.jpg",
+      "/images/proj18d.jpg",
+      "/images/proj18e.jpg",
+      "/images/proj18f.jpg",
+      "/images/proj18g.jpg",
     ],
     videos: [],
   },
@@ -58,10 +58,10 @@ const COMMERCIAL_PROJECTS = [
     description:
       "Commercial interior renovation including full painting, repairs, and finishing work. The high exposed ceiling was upgraded with modern lighting, creating a bright, clean, and customer-ready retail space.",
     images: [
-      "/src/assets/proj17a.jpg",
-      "/src/assets/proj17b.jpg",
-      "/src/assets/proj17c.jpg",
-      "/src/assets/proj17d.jpg",
+      "/images/proj17a.jpg",
+      "/images/proj17b.jpg",
+      "/images/proj17c.jpg",
+      "/images/proj17d.jpg",
     ],
     videos: [],
   },
@@ -71,11 +71,11 @@ const COMMERCIAL_PROJECTS = [
     description:
       "Exterior work including masonry repairs, brick restoration, window detailing, and finishing. Scaffolding was used for safe access, resulting in a clean, restored exterior with a refreshed, well-maintained look.",
     images: [
-      "/src/assets/proj10a.jpeg",
-      "/src/assets/proj10b.jpeg",
-      "/src/assets/proj10c.jpeg",
-      "/src/assets/proj10d.jpeg",
-      "/src/assets/proj10e.jpeg",
+      "/images/proj10a.jpeg",
+      "/images/proj10b.jpeg",
+      "/images/proj10c.jpeg",
+      "/images/proj10d.jpeg",
+      "/images/proj10e.jpeg",
     ],
     videos: [],
   },
@@ -85,10 +85,10 @@ const COMMERCIAL_PROJECTS = [
     description:
       "Commercial interior renovation including wall and ceiling prep, painting, repairs, and clean finishing details to deliver a customer-ready space with a bright and modern feel.",
     images: [
-      "/src/assets/proj3a.jpeg",
-      "/src/assets/proj3b.jpeg",
-      "/src/assets/proj3c.jpeg",
-      "/src/assets/proj3d.jpeg",
+      "/images/proj3a.jpeg",
+      "/images/proj3b.jpeg",
+      "/images/proj3c.jpeg",
+      "/images/proj3d.jpeg",
     ],
     videos: [],
   },
@@ -98,10 +98,10 @@ const COMMERCIAL_PROJECTS = [
     description:
       "Exterior refresh including façade painting, window frame painting, surface repairs, and finishing work. The project improved durability and delivered a cleaner, more modern, well-maintained appearance.",
     images: [
-      "/src/assets/proj11a.jpeg",
-      "/src/assets/proj11b.jpeg",
-      "/src/assets/proj11c.jpeg",
-      "/src/assets/proj11d.jpeg",
+      "/images/proj11a.jpeg",
+      "/images/proj11b.jpeg",
+      "/images/proj11c.jpeg",
+      "/images/proj11d.jpeg",
     ],
     videos: [],
   },
@@ -110,7 +110,7 @@ const COMMERCIAL_PROJECTS = [
     city: "Brampton, ON",
     description:
       "Commercial interior renovation focused on exposed ceiling painting, structural steel and beam coating, ductwork painting, and full surface protection. The project delivered a clean, consistent finish while preserving the open industrial style, resulting in a bright, modern, showroom-ready dealership space.",
-    images: ["/src/assets/proj19a.jpeg", "/src/assets/proj19b.jpeg"],
+    images: ["/images/proj19a.jpeg", "/images/proj19b.jpeg"],
     videos: [
       {
         src: "https://res.cloudinary.com/drpj52sog/video/upload/f_auto,q_auto/44_elejqr.mp4",
@@ -126,11 +126,9 @@ const COMMERCIAL_PROJECTS = [
         description:
           "Completed interior after ceiling, steel, and ductwork painting with a clean professional finish.",
       },
-      
     ],
   },
 ];
-
 
 /* ---------------- PAGE ---------------- */
 
@@ -165,9 +163,7 @@ export default function CommercialProjectsPage() {
 
                 <h2 className="mt-2 text-xl font-extrabold text-black sm:text-2xl">
                   {p.title}{" "}
-                  <span className="text-neutral-500 font-semibold">
-                    — {p.city}
-                  </span>
+                  <span className="text-neutral-500 font-semibold">— {p.city}</span>
                 </h2>
 
                 {p.description && (
@@ -203,18 +199,15 @@ export default function CommercialProjectsPage() {
                 ))}
               </div>
 
-              {/* Videos (Before/After side-by-side, Final centered smaller) */}
+              {/* Videos */}
               {p.videos?.length > 0 && (
                 <div className="mt-10">
-                  <h3 className="text-lg font-bold text-black sm:text-xl">
-                    Videos
-                  </h3>
+                  <h3 className="text-lg font-bold text-black sm:text-xl">Videos</h3>
 
                   <div className="mt-4 space-y-10">
-                    {/* BEFORE + AFTER side by side */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
                       {p.videos.slice(0, 2).map((video, i) => (
-                        <div key={video.src + i}>
+                        <div key={(video.src || "video") + i}>
                           <div className="mb-3 rounded-xl bg-gradient-to-br from-[#eef2f7] to-[#e4ebf5] px-4 py-3 shadow-sm border border-[#d7e0ee]">
                             <div className="text-sm font-semibold text-[#1f2a44]">
                               {video.title}
@@ -239,7 +232,6 @@ export default function CommercialProjectsPage() {
                       ))}
                     </div>
 
-                    {/* FINAL WALKTHROUGH (centered, smaller) */}
                     {p.videos[2] && (
                       <div className="max-w-2xl mx-auto">
                         <div className="mb-3 rounded-xl bg-gradient-to-br from-[#eef2f7] to-[#e4ebf5] px-4 py-3 shadow-sm border border-[#d7e0ee]">
@@ -291,6 +283,7 @@ function Lightbox({ images, startIndex, onClose, title, city }) {
   const [index, setIndex] = useState(startIndex);
   const hasMany = images.length > 1;
   const dialogRef = useRef(null);
+  const startX = useRef(0);
 
   const next = () => setIndex((i) => (i + 1) % images.length);
   const prev = () => setIndex((i) => (i - 1 + images.length) % images.length);
@@ -303,8 +296,6 @@ function Lightbox({ images, startIndex, onClose, title, city }) {
       document.body.style.overflow = prevOverflow;
     };
   }, []);
-
-  const startX = useRef(0);
 
   return (
     <div

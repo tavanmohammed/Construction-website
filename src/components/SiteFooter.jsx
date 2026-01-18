@@ -1,5 +1,5 @@
 import { navLinks, site, serviceAreas } from "../data/siteData";
-import logo from "../assets/builda.svg";
+
 
 export default function SiteFooter() {
   return (
@@ -12,7 +12,8 @@ export default function SiteFooter() {
           {/* Logo + blurb */}
           <div>
             <div className="flex items-center gap-4">
-              <img src={logo} alt="logo" className="h-14 w-auto" />
+            <img src="/images/builda.svg" alt="logo" className="h-14 w-auto" />
+
               <div>
                 <div className="text-lg font-extrabold tracking-wide">
                   {site.companyName.toUpperCase()}

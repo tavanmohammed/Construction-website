@@ -1,24 +1,5 @@
 // src/data/siteData.js
-import heroBg from "../assets/hero-bg.jpg";
-import aboutImg from "../assets/about.jpg";
-import paintingImg from "../assets/painting.jpg";
-import flooringImg from "../assets/flooring.jpg";
-import drywallImg from "../assets/drywall.jpg";
-import ceilingImg from "../assets/ceiling.jpg";
-import masonryImg from "../assets/masonry.jpeg";
-import masonryConcreteImg from "../assets/masonry-concrete.jpg";
-import waterproofingImg from "../assets/waterproofing.jpg";
-import balconyImg from "../assets/balcony.jpg";
-import outdoorImg from "../assets/outdoor.jpeg";
-import kitchenImg from "../assets/proj5a.jpg";
-import bathroomImg from "../assets/proj4a.jpeg";
-import basementImg from "../assets/proj2a.jpg";
-import exteriorImg from "../assets/proj3a.jpeg";
-import toyota from "../assets/toyota.jpg";
-import sheraton from "../assets/sheraton.jpeg";
-import bmw from "../assets/bmw.jpg";
-import healthyPlanet from "../assets/healthy.jpeg";
-
+// ✅ Using public/images (NO imports needed)
 
 /* =========================
    NAVIGATION
@@ -48,12 +29,10 @@ export const site = {
    HERO SECTION
 ========================= */
 export const hero = {
-  bgImage: heroBg, // ✅ use local asset
+  bgImage: "/images/hero-bg.jpg",
   eyebrow: "Custom Home Builders & Renovation Experts in Toronto & the GTA",
-  title:
-    "Specialists in Restoration & Structural Renewal ",
-  description:
-    "Building Restoration- Thoughtfully Repaired, Expertly Reinforced.",
+  title: "Specialists in Restoration & Structural Renewal ",
+  description: "Building Restoration- Thoughtfully Repaired, Expertly Reinforced.",
   primaryCta: "Book a Free Consultation",
   secondaryCta: "View Our Projects",
   primaryHref: "#contact",
@@ -63,11 +42,8 @@ export const hero = {
 /* =========================
    ABOUT SECTION
 ========================= */
-
-
 export const about = {
   title: "Trusted Commercial & Residential Renovation Experts",
-
   description:
     "We are a full-service renovation and construction company with experience across commercial and residential projects. Our work includes dealerships, retail spaces, restaurants, offices, commercial buildings, and private cottages. We focus on quality workmanship, clean finishes, and reliable timelines.",
 
@@ -78,16 +54,17 @@ export const about = {
     "Apartments, homes, and private cottages",
   ],
 
+  // ✅ Logos now use public/images
   logos: [
-    { name: "Toyota", src: toyota },
-    { name: "BMW", src: bmw },
-    { name: "Sheraton Hotel", src: sheraton },
-    { name: "Healthy Planet", src: healthyPlanet },
+    { name: "Toyota", src: "/images/toyota.jpg" },
+    { name: "BMW", src: "/images/bmw.jpg" },
+    { name: "Sheraton Hotel", src: "/images/sheraton.jpeg" },
+    { name: "Healthy Planet", src: "/images/healthy.jpeg" },
   ],
 
-  image: "/src/assets/about.jpg",
+  // ✅ About image now uses public/images
+  image: "/images/about.jpg",
 };
-
 
 /* =========================
    STATS
@@ -103,22 +80,10 @@ export const stats = [
    SERVICES
 ========================= */
 export const services = [
-  {
-    title: "Home Renovations",
-    description: "Kitchens, bathrooms, basements, and full remodels.",
-  },
-  {
-    title: "Commercial Work",
-    description: "Retail, offices, and small commercial upgrades.",
-  },
-  {
-    title: "Flooring & Drywall",
-    description: "Framing, drywall, paint, flooring, and finishing.",
-  },
-  {
-    title: "Custom Projects",
-    description: "Decks, fences, feature walls, and more.",
-  },
+  { title: "Home Renovations", description: "Kitchens, bathrooms, basements, and full remodels." },
+  { title: "Commercial Work", description: "Retail, offices, and small commercial upgrades." },
+  { title: "Flooring & Drywall", description: "Framing, drywall, paint, flooring, and finishing." },
+  { title: "Custom Projects", description: "Decks, fences, feature walls, and more." },
 ];
 
 /* =========================
@@ -129,40 +94,38 @@ export const projects = [
     slug: "kitchen-renovation",
     tag: "Renovation",
     title: "Kitchen Renovation",
-    image: kitchenImg,
+    image: "/images/proj5a.jpg",
     description: "Modern kitchen renovation with custom finishes.",
   },
   {
     slug: "bathroom-remodel",
     tag: "Remodel",
     title: "Bathroom Remodel",
-    image: bathroomImg,
+    image: "/images/proj4a.jpeg",
     description: "Complete bathroom upgrade with tile and fixtures.",
   },
   {
     slug: "basement-finish",
     tag: "Renovation",
     title: "Basement Finishing",
-    image: basementImg,
+    image: "/images/proj2a.jpg",
     description: "Basement drywall, flooring, and lighting.",
   },
   {
     slug: "outdoor-restoration",
     tag: "Restoration",
     title: "Outdoor Restoration",
-    image: exteriorImg,
+    image: "/images/proj3a.jpeg",
     description: "Exterior repairs and protective coatings.",
   },
 ];
-
 
 /* =========================
    CONTACT
 ========================= */
 export const contact = {
   title: "Let’s build something great",
-  description:
-    "Send us a message with your project details. We’ll reply fast with next steps.",
+  description: "Send us a message with your project details. We’ll reply fast with next steps.",
 };
 
 export const reviews = {
@@ -190,7 +153,6 @@ export const reviews = {
       stars: 5,
     },
   ],
-  
 };
 
 export const serviceAreas = {
@@ -221,83 +183,51 @@ export const serviceAreas = {
   mapCtaText: "View Coverage Map",
 };
 
+/* =========================
+   REPAIR SERVICES
+========================= */
 export const repairServices = {
   title: "Repair Services",
   subtitle: "Small fixes. Big difference.",
   description:
     "From cosmetic touch-ups to essential repairs, we handle the details that keep your home looking and functioning at its best.",
   items: [
-    {
-      title: "Painting & Touch-Ups",
-      image: paintingImg,
-    },
-    {
-      title: "Flooring Repairs",
-      image: flooringImg,
-    },
-    {
-      title: "Drywall Repair",
-      image: drywallImg,
-    },
-    {
-      title: "Ceiling Repair",
-      image: ceilingImg,
-    },
-  
+    { title: "Painting & Touch-Ups", image: "/images/painting.jpg" },
+    { title: "Flooring Repairs", image: "/images/flooring.jpg" },
+    { title: "Drywall Repair", image: "/images/drywall.jpg" },
+    { title: "Ceiling Repair", image: "/images/ceiling.jpg" },
   ],
 };
+
 export const restorationServices = {
   title: "Restoration Services",
   subtitle: "Structural strength. Long-term protection.",
   description:
     "Our restoration services focus on reinforcing, protecting, and extending the life of your property using proven materials and expert craftsmanship.",
   items: [
-    {
-      title: "Masonry Restoration",
-      image: masonryImg,
-    },
-    {
-      title: "Masonry & Concrete Repair",
-      image: masonryConcreteImg,
-    },
-    
-    {
-      title: "Waterproofing Solutions",
-      image: waterproofingImg,
-    },
-    {
-      title: "Concrete & Balcony Restoration",
-      image: balconyImg,
-    },
-    {
-      title: "Outdoor Restoration",
-      image: outdoorImg,
-    },
+    { title: "Masonry Restoration", image: "/images/masonry.jpeg" },
+    { title: "Masonry & Concrete Repair", image: "/images/masonry-concrete.jpg" },
+    { title: "Waterproofing Solutions", image: "/images/waterproofing.jpg" },
+    { title: "Concrete & Balcony Restoration", image: "/images/balcony.jpg" },
+    { title: "Outdoor Restoration", image: "/images/outdoor.jpeg" },
   ],
 };
+
 export const serviceOptions = [
-  // General
   "Home Renovations",
   "Commercial Work",
   "Custom Projects",
-
-  // Repair Services
   "Repair – Painting & Touch-Ups",
   "Repair – Flooring Repairs",
   "Repair – Drywall Repair",
   "Repair – Ceiling Repair",
-
-  // Restoration Services
   "Restoration – Masonry Restoration",
   "Restoration – Masonry & Concrete Repair",
   "Restoration – Waterproofing Solutions",
   "Restoration – Concrete & Balcony Restoration",
   "Restoration – Outdoor Restoration",
-
-  
   "Other",
 ];
-
 
 export const cityOptions = [
   "Toronto",

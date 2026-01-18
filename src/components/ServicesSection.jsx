@@ -1,45 +1,40 @@
-import additionsImg from "../assets/home-additions.jpg";
-import kitchenImg from "../assets/kitchen-renovations.jpg";
-import bathroomImg from "../assets/bathroom.jpg";
-import basementImg from "../assets/basement.jpg";
-import constructionImg from "../assets/construction.jpg";
+// src/components/ServicesSection.jsx (or wherever this file is)
 
 const services = [
-  
   {
     title: "Home Additions",
     bold: "Home Additions in Vaughan and Toronto.",
     desc:
       "Seamless extensions that expand your space while blending with your home’s style.",
-    image: additionsImg,
+    image: "/images/home-additions.jpg",
   },
   {
     title: "Kitchen Renovations",
     bold: "Luxury Kitchen Renovations in Vaughan.",
     desc:
       "Smart layouts, premium finishes, and modern design tailored to how you cook and live.",
-    image: kitchenImg,
+    image: "/images/kitchen-renovations.jpg",
   },
   {
     title: "Bathroom Renovations",
     bold: "Bathroom Renovations in Vaughan.",
     desc:
       "Spa-inspired upgrades and functional layouts that enhance comfort and style.",
-    image: bathroomImg,
+    image: "/images/bathroom.jpg",
   },
   {
     title: "Basement Renovations",
     bold: "Basement Renovations in Vaughan.",
     desc:
       "Rec rooms, rental suites, and custom living spaces — designed for comfort and value.",
-    image: basementImg,
+    image: "/images/basement.jpg",
   },
   {
     title: "Construction Management",
     bold: "Residential Construction Management.",
     desc:
       "Expert oversight ensuring quality, timelines, and seamless coordination.",
-    image: constructionImg,
+    image: "/images/construction.jpg",
   },
 ];
 
@@ -67,7 +62,7 @@ export default function ServicesSection() {
               , we bring thoughtful craftsmanship and expert project management to
               every home we transform.
             </p>
-          </div>  
+          </div>
         </div>
 
         {/* Cards grid */}
@@ -90,12 +85,11 @@ function ServiceCard({ service }) {
             src={service.image}
             alt={service.title}
             className="h-52 w-full object-cover"
+            loading="lazy"
           />
         </div>
 
-        <h4 className="mt-6 text-xl font-extrabold">
-          {service.title}
-        </h4>
+        <h4 className="mt-6 text-xl font-extrabold">{service.title}</h4>
 
         <p className="mt-4 text-[15px] font-semibold text-neutral-800">
           {service.bold}

@@ -1,7 +1,7 @@
 import { site } from "../data/siteData";
 
 export default function StatsSection() {
-  const stats = site.stats ?? []; // ✅ never crashes
+  const stats = site.stats ?? []; 
 
   return (
     <section className="bg-black py-16 text-white">
