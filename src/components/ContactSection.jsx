@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import { contact, site, serviceOptions, cityOptions } from "../data/siteData";
 
+// ✅ API base (Render env var recommended)
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 const emptyForm = {
   fullName: "",
   email: "",
@@ -62,7 +66,7 @@ export default function ContactSection() {
         type: "success",
         title: "Thank you!",
         message:
-          "Thank you for reaching out to Buildara Group. Your request was submitted successfully and we will contact you shortly.",
+          "Thank you for reaching out to Buildara Group. Your request was submitted successfully and we will contact you within 48 Business Hours.",
       });
     } catch (err) {
       setModal({
