@@ -28,7 +28,7 @@ app.use(
 );
 
 // 🔥 REQUIRED for browser preflight
-app.options("*", cors());
+app.options(/.*/, cors());
 
 /* ====================== */
 
