@@ -42,6 +42,20 @@ router.post("/", async (req, res) => {
 
     // Honeypot: if filled, treat as bot and "succeed"
     if (website) return res.status(200).json({ ok: true });
+     //  TEMP: don't send emails (Render can't reach GoDaddy SMTP)
+if (isSkipEmail()) {
+  console.log("CONTACT SUBMISSION (SKIP_EMAIL):", {
+    time: new Date().toISOString(),
+    fullName,
+    email,
+    phone,
+    service,
+    city,
+    message,
+  });
+  return res.status(200).json({ ok: true });
+}
+
 
     const name = normalize(fullName);
     const userEmail = normalize(email);
