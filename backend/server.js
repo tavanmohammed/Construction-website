@@ -1,4 +1,3 @@
-// server.js
 import express from "express";
 import cors from "cors";
 import contactRoute from "./routes/contact.js";
@@ -6,41 +5,41 @@ import "dotenv/config";
 
 const app = express();
 
-/* =========================
-   CORS
-   - Local dev: http://localhost:5173
-   - Production: set FRONTEND_URL on Render (your deployed frontend URL)
-========================= */
-const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:5173", "https://buildaragroup.ca","https://www.buildaragroup.ca",].filter(
-  Boolean
-);
+/* ======================
+   CORS (VERY IMPORTANT)
+   ====================== */
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "https://buildaragroup.ca",
+  "https://www.buildaragroup.ca",
+].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true); // allows Postman / server requests
+      if (!origin) return cb(null, true);
       if (allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error("Not allowed by CORS"));
+      return cb(null, false); // don't throw
     },
-    credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
   })
 );
 
+// 🔥 REQUIRED for browser preflight
+app.options("*", cors());
+
+/* ====================== */
+
 app.use(express.json());
 
-/* =========================
-   ROUTES
-========================= */
+// routes
 app.use("/api/contact", contactRoute);
 
-app.get("/", (req, res) => {
-  res.send("Buildara Group API is running ");
-});
+// health check
+app.get("/", (req, res) => res.send("API is running"));
 
-/* =========================
-   START SERVER (Render needs PORT)
-========================= */
+// start server (Render)
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log("Server running on", PORT));
