@@ -1,9 +1,12 @@
+// backend/routes/contact.js
 import express from "express";
 import nodemailer from "nodemailer";
 
 const router = express.Router();
 
-// Basic escaping to prevent HTML injection in email body
+/* -----------------------
+   Helpers (safe email body)
+------------------------ */
 function escapeHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -13,30 +16,56 @@ function escapeHtml(str = "") {
     .replaceAll("'", "&#039;");
 }
 
-// Extra safety: ensure these cannot break headers
 function cleanHeaderValue(str = "") {
   return String(str).replace(/[\r\n]/g, " ").trim();
 }
 
-router.post("/", async (req, res) => {
-  try {
-    const { fullName, email, phone, service, city, message, website } = req.body;
+function normalize(str = "") {
+  return String(str ?? "").trim();
+}
 
-    // Honeypot (optional): add a hidden input named "website" in your form.
-    // If it's filled, it's probably a bot.
+/* -----------------------
+   POST /api/contact
+------------------------ */
+router.post("/", async (req, res) => {
+  // Always respond; never hang
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      service,
+      city,
+      message,
+      website, // honeypot
+    } = req.body || {};
+
+    // Honeypot: if filled, treat as bot and "succeed"
     if (website) return res.status(200).json({ ok: true });
 
-    if (!email || !fullName) {
-      return res.status(400).json({ error: "Name and email are required." });
+    const name = normalize(fullName);
+    const userEmail = normalize(email);
+
+    if (!name || !userEmail) {
+      return res
+        .status(400)
+        .json({ error: "Full name and email are required." });
     }
 
-    // Minimal email format check
-    const emailTrim = String(email).trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+    // Minimal email check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
       return res.status(400).json({ error: "Invalid email address." });
     }
 
-    // Required env checks
+    const safePhone = escapeHtml(normalize(phone) || "N/A");
+    const safeService = escapeHtml(normalize(service) || "N/A");
+    const safeCity = escapeHtml(normalize(city) || "N/A");
+    const safeMessage = escapeHtml(normalize(message) || "N/A").replace(
+      /\n/g,
+      "<br/>"
+    );
+
+    // Env vars
     const {
       SMTP_HOST,
       SMTP_PORT,
@@ -48,69 +77,75 @@ router.post("/", async (req, res) => {
       BRAND_NAME,
     } = process.env;
 
-    if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
-      return res.status(500).json({ error: "Email server is not configured." });
-    }
-    if (!ADMIN_EMAIL || !FROM_EMAIL) {
-      return res.status(500).json({ error: "Missing ADMIN_EMAIL or FROM_EMAIL." });
+    // Fail fast (don’t hang)
+    const missing = [];
+    if (!SMTP_HOST) missing.push("SMTP_HOST");
+    if (!SMTP_PORT) missing.push("SMTP_PORT");
+    if (!SMTP_USER) missing.push("SMTP_USER");
+    if (!SMTP_PASS) missing.push("SMTP_PASS");
+    if (!ADMIN_EMAIL) missing.push("ADMIN_EMAIL");
+    if (!FROM_EMAIL) missing.push("FROM_EMAIL");
+
+    if (missing.length) {
+      return res.status(500).json({
+        error: `Email server is not configured (${missing.join(", ")}).`,
+      });
     }
 
     const transporter = nodemailer.createTransport({
       host: SMTP_HOST,
       port: Number(SMTP_PORT),
-      secure: SMTP_SECURE === "true",
+      secure: String(SMTP_SECURE).toLowerCase() === "true",
       auth: { user: SMTP_USER, pass: SMTP_PASS },
+
+      //  prevents infinite “Sending…”
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
 
-    // Verify transporter (catches bad creds/config early)
-    await transporter.verify();
-
-    const safeName = cleanHeaderValue(fullName);
-    const safeReplyTo = cleanHeaderValue(emailTrim);
-
-    const safePhone = escapeHtml(phone || "N/A");
-    const safeService = escapeHtml(service || "N/A");
-    const safeCity = escapeHtml(city || "N/A");
-    const safeMessage = escapeHtml(message || "").replace(/\n/g, "<br/>");
+    const safeFromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
+    const safeReplyTo = cleanHeaderValue(userEmail);
+    const safeNameHeader = cleanHeaderValue(name);
 
     // 1) Email to Admin
     await transporter.sendMail({
       from: `"Website Contact" <${FROM_EMAIL}>`,
       to: ADMIN_EMAIL,
-      subject: `New Contact Request: ${safeName}`,
+      subject: `New Contact Request: ${safeNameHeader}`,
       replyTo: safeReplyTo,
       html: `
         <h2>New Contact Form Submission</h2>
-        <p><b>Name:</b> ${escapeHtml(fullName)}</p>
-        <p><b>Email:</b> ${escapeHtml(emailTrim)}</p>
+        <p><b>Name:</b> ${escapeHtml(name)}</p>
+        <p><b>Email:</b> ${escapeHtml(userEmail)}</p>
         <p><b>Phone:</b> ${safePhone}</p>
         <p><b>Service:</b> ${safeService}</p>
         <p><b>City:</b> ${safeCity}</p>
-        <p><b>Message:</b><br/>${safeMessage || "N/A"}</p>
+        <p><b>Message:</b><br/>${safeMessage}</p>
       `,
     });
 
-    // 2) Auto-reply to User
+    // 2) Auto-reply to User (optional, but nice)
     await transporter.sendMail({
-      from: `"${cleanHeaderValue(BRAND_NAME || "Our Team")}" <${FROM_EMAIL}>`,
-      to: emailTrim,
+      from: `"${safeFromName}" <${FROM_EMAIL}>`,
+      to: userEmail,
       subject: "We received your request",
       html: `
-        <p>Hi ${escapeHtml(fullName)},</p>
-        <p>Thanks for reaching out to Buildara Group. We’ve received your request and will contact you shortly.</p>
+        <p>Hi ${escapeHtml(name)},</p>
+        <p>Thanks for reaching out to Buildara Group. We’ve received your request and will contact you within 48 business hours.</p>
         <p><b>Your details:</b></p>
         <ul>
           <li>Service: ${safeService}</li>
           <li>City: ${safeCity}</li>
           <li>Phone: ${safePhone}</li>
         </ul>
-        <p>— ${escapeHtml(BRAND_NAME || "Our Team")}</p>
+        <p>— ${escapeHtml(safeFromName)}</p>
       `,
     });
 
-    return res.json({ ok: true });
+    return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("Email send error:", err);
+    console.error("Contact email send error:", err);
     return res.status(500).json({ error: "Failed to send email." });
   }
 });
