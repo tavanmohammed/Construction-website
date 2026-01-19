@@ -24,6 +24,13 @@ function normalize(str = "") {
   return String(str ?? "").trim();
 }
 
+function isSkipEmail() {
+  // Set SKIP_EMAIL=true in Render env vars when you want to disable sending
+  return String(process.env.SKIP_EMAIL || "")
+    .toLowerCase()
+    .trim() === "true";
+}
+
 /* -----------------------
    POST /api/contact
 ------------------------ */
