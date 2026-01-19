@@ -20,7 +20,7 @@ export const site = {
   companyName: "Buildara Group",
   tagline: "Construction & Renovation",
   phone: "(647)819-9317",
-  email: "barhambuildaragroup@gmail.com",
+  email: "info@buildaragroup.ca",
   address: "Toronto, Ontario",
   hours: "Mon–Sat: 8am–6pm",
 };
