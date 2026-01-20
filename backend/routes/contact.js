@@ -1,44 +1,50 @@
-// backend/routes/contact.js
 import express from "express";
-import nodemailer from "nodemailer";
+import fetch from "node-fetch";
 
 const router = express.Router();
 
 /* -----------------------
-   Helpers (safe email body)
+   Helpers
 ------------------------ */
-function escapeHtml(str = "") {
-  return String(str)
+const escapeHtml = (str = "") =>
+  String(str)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
 
-function cleanHeaderValue(str = "") {
-  return String(str).replace(/[\r\n]/g, " ").trim();
-}
+const normalize = (v = "") => String(v || "").trim();
 
-function normalize(str = "") {
-  return String(str ?? "").trim();
-}
+/* -----------------------
+   Send Email via Resend
+------------------------ */
+async function sendEmail({ to, subject, html, replyTo }) {
+  const { RESEND_API_KEY, FROM_EMAIL, BRAND_NAME } = process.env;
 
-function isSkipEmail() {
-  return String(process.env.SKIP_EMAIL || "").toLowerCase().trim() === "true";
-}
+  if (!RESEND_API_KEY || !FROM_EMAIL) {
+    throw new Error("Email not configured");
+  }
 
-function boolFromEnv(v, fallback = false) {
-  if (v === undefined || v === null) return fallback;
-  const s = String(v).toLowerCase().trim();
-  if (["true", "1", "yes", "y"].includes(s)) return true;
-  if (["false", "0", "no", "n"].includes(s)) return false;
-  return fallback;
-}
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `${BRAND_NAME || "Buildara Group"} <${FROM_EMAIL}>`,
+      to: [to],
+      subject,
+      html,
+      reply_to: replyTo ? [replyTo] : undefined,
+    }),
+  });
 
-function intFromEnv(v, fallback) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Resend error: ${txt}`);
+  }
 }
 
 /* -----------------------
@@ -46,148 +52,55 @@ function intFromEnv(v, fallback) {
 ------------------------ */
 router.post("/", async (req, res) => {
   try {
-    const {
-      fullName,
-      email,
-      phone,
-      service,
-      city,
-      message,
-      website, // honeypot
-    } = req.body || {};
+    const { fullName, email, phone, service, city, message, website } = req.body;
 
-    // Honeypot: if filled, treat as bot and "succeed"
-    if (website) return res.status(200).json({ ok: true });
-
-    // TEMP: allow skipping email sending
-    if (isSkipEmail()) {
-      console.log("CONTACT SUBMISSION (SKIP_EMAIL):", {
-        time: new Date().toISOString(),
-        fullName,
-        email,
-        phone,
-        service,
-        city,
-        message,
-      });
-      return res.status(200).json({ ok: true });
-    }
+    // Honeypot
+    if (website) return res.json({ ok: true });
 
     const name = normalize(fullName);
     const userEmail = normalize(email);
 
     if (!name || !userEmail) {
-      return res.status(400).json({ error: "Full name and email are required." });
+      return res.status(400).json({ error: "Name and email required" });
     }
 
-    // Minimal email check
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
-      return res.status(400).json({ error: "Invalid email address." });
-    }
-
-    const safePhone = escapeHtml(normalize(phone) || "N/A");
-    const safeService = escapeHtml(normalize(service) || "N/A");
-    const safeCity = escapeHtml(normalize(city) || "N/A");
-    const safeMessage = escapeHtml(normalize(message) || "N/A").replace(/\n/g, "<br/>");
-
-    // Env vars
-    const {
-      SMTP_HOST,
-      SMTP_PORT,
-      SMTP_SECURE, // "true" for 465 SSL, "false" for 587 STARTTLS
-      SMTP_USER,
-      SMTP_PASS,
-      ADMIN_EMAIL,
-      FROM_EMAIL,
-      BRAND_NAME,
-    } = process.env;
-
-    // Fail fast (don’t hang)
-    const missing = [];
-    if (!SMTP_HOST) missing.push("SMTP_HOST");
-    if (!SMTP_PORT) missing.push("SMTP_PORT");
-    if (!SMTP_USER) missing.push("SMTP_USER");
-    if (!SMTP_PASS) missing.push("SMTP_PASS");
-    if (!ADMIN_EMAIL) missing.push("ADMIN_EMAIL");
-    if (!FROM_EMAIL) missing.push("FROM_EMAIL");
-
-    if (missing.length) {
-      return res.status(500).json({
-        error: `Email server is not configured (${missing.join(", ")}).`,
-      });
-    }
-
-    const port = intFromEnv(SMTP_PORT, 587);
-    const secure = boolFromEnv(SMTP_SECURE, port === 465); // sensible default
-
-    const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port,
-      secure, // true for 465, false for 587/STARTTLS
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-
-      // For STARTTLS on 587, this ensures TLS is used
-      requireTLS: !secure,
-
-      // Prevent infinite “Sending…”
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-    });
-
-    const safeFromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
-    const safeReplyTo = cleanHeaderValue(userEmail);
-    const safeNameHeader = cleanHeaderValue(name);
+    const safeMsg = escapeHtml(normalize(message)).replace(/\n/g, "<br/>");
+    const safePhone = escapeHtml(phone || "N/A");
+    const safeCity = escapeHtml(city || "N/A");
+    const safeService = escapeHtml(service || "N/A");
 
     // 1) Email to Admin
-    await transporter.sendMail({
-      from: `"Website Contact" <${FROM_EMAIL}>`,
-      to: ADMIN_EMAIL,
-      subject: `New Contact Request: ${safeNameHeader}`,
-      replyTo: safeReplyTo,
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: `New Contact Request: ${name}`,
+      replyTo: userEmail,
       html: `
-        <h2>New Contact Form Submission</h2>
+        <h2>New Contact Form</h2>
         <p><b>Name:</b> ${escapeHtml(name)}</p>
         <p><b>Email:</b> ${escapeHtml(userEmail)}</p>
         <p><b>Phone:</b> ${safePhone}</p>
         <p><b>Service:</b> ${safeService}</p>
         <p><b>City:</b> ${safeCity}</p>
-        <p><b>Message:</b><br/>${safeMessage}</p>
+        <p><b>Message:</b><br/>${safeMsg}</p>
       `,
     });
 
-    // 2) Auto-reply to User
-    await transporter.sendMail({
-      from: `"${safeFromName}" <${FROM_EMAIL}>`,
+    // 2) Auto-reply to user
+    await sendEmail({
       to: userEmail,
       subject: "We received your request",
       html: `
         <p>Hi ${escapeHtml(name)},</p>
-        <p>Thanks for reaching out to ${escapeHtml(
-          safeFromName
-        )}. We’ve received your request and will contact you shortly.</p>
-        <p><b>Your details:</b></p>
-        <ul>
-          <li>Service: ${safeService}</li>
-          <li>City: ${safeCity}</li>
-          <li>Phone: ${safePhone}</li>
-        </ul>
-        <p>— ${escapeHtml(safeFromName)}</p>
+        <p>Thanks for contacting <b>Buildara Group</b>.</p>
+        <p>We received your request and will contact you within 48 business hours.</p>
+        <p>— Buildara Group</p>
       `,
     });
 
-    return res.status(200).json({ ok: true });
+    res.json({ ok: true });
   } catch (err) {
-    // Show useful error info in logs
-    console.error("Contact email send error:", {
-      message: err?.message,
-      code: err?.code,
-      command: err?.command,
-      response: err?.response,
-      responseCode: err?.responseCode,
-      stack: err?.stack,
-    });
-    return res.status(500).json({ error: "Failed to send email." });
+    console.error("Contact error:", err.message);
+    res.status(500).json({ error: "Failed to send message" });
   }
 });
 
