@@ -1,5 +1,4 @@
 import express from "express";
-import fetch from "node-fetch";
 
 const router = express.Router();
 
@@ -14,16 +13,16 @@ const escapeHtml = (str = "") =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
-const normalize = (v = "") => String(v || "").trim();
+const clean = (v = "") => String(v).trim();
 
 /* -----------------------
-   Send Email via Resend
+   Resend sender
 ------------------------ */
 async function sendEmail({ to, subject, html, replyTo }) {
   const { RESEND_API_KEY, FROM_EMAIL, BRAND_NAME } = process.env;
 
   if (!RESEND_API_KEY || !FROM_EMAIL) {
-    throw new Error("Email not configured");
+    throw new Error("Resend not configured");
   }
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -42,8 +41,7 @@ async function sendEmail({ to, subject, html, replyTo }) {
   });
 
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Resend error: ${txt}`);
+    throw new Error(await res.text());
   }
 }
 
@@ -52,56 +50,67 @@ async function sendEmail({ to, subject, html, replyTo }) {
 ------------------------ */
 router.post("/", async (req, res) => {
   try {
-    const { fullName, email, phone, service, city, message, website } = req.body;
+    const {
+      fullName,
+      email,
+      phone,
+      service,
+      city,
+      message,
+      website, // honeypot
+    } = req.body || {};
 
-    // Honeypot
+    // Bot trap
     if (website) return res.json({ ok: true });
 
-    const name = normalize(fullName);
-    const userEmail = normalize(email);
+    const name = clean(fullName);
+    const userEmail = clean(email);
 
     if (!name || !userEmail) {
       return res.status(400).json({ error: "Name and email required" });
     }
 
-    const safeMsg = escapeHtml(normalize(message)).replace(/\n/g, "<br/>");
-    const safePhone = escapeHtml(phone || "N/A");
-    const safeCity = escapeHtml(city || "N/A");
-    const safeService = escapeHtml(service || "N/A");
+    const { ADMIN_EMAIL } = process.env;
+    if (!ADMIN_EMAIL) {
+      return res.status(500).json({ error: "ADMIN_EMAIL missing" });
+    }
 
-    // 1) Email to Admin
+    const safeMessage = escapeHtml(message || "N/A").replace(/\n/g, "<br/>");
+
+    /* 1️⃣ Email to admin */
     await sendEmail({
-      to: process.env.ADMIN_EMAIL,
-      subject: `New Contact Request: ${name}`,
+      to: ADMIN_EMAIL,
+      subject: `New Contact Request — ${name}`,
       replyTo: userEmail,
       html: `
-        <h2>New Contact Form</h2>
+        <h2>New Contact Form Submission</h2>
         <p><b>Name:</b> ${escapeHtml(name)}</p>
         <p><b>Email:</b> ${escapeHtml(userEmail)}</p>
-        <p><b>Phone:</b> ${safePhone}</p>
-        <p><b>Service:</b> ${safeService}</p>
-        <p><b>City:</b> ${safeCity}</p>
-        <p><b>Message:</b><br/>${safeMsg}</p>
+        <p><b>Phone:</b> ${escapeHtml(phone || "N/A")}</p>
+        <p><b>Service:</b> ${escapeHtml(service || "N/A")}</p>
+        <p><b>City:</b> ${escapeHtml(city || "N/A")}</p>
+        <p><b>Message:</b><br/>${safeMessage}</p>
       `,
     });
 
-    // 2) Auto-reply to user
+    /* 2️⃣ Confirmation to user */
     await sendEmail({
       to: userEmail,
       subject: "We received your request",
       html: `
         <p>Hi ${escapeHtml(name)},</p>
         <p>Thanks for contacting <b>Buildara Group</b>.</p>
-        <p>We received your request and will contact you within 48 business hours.</p>
+        <p>We received your request and will contact you shortly.</p>
         <p>— Buildara Group</p>
       `,
     });
 
     res.json({ ok: true });
   } catch (err) {
-    console.error("Contact error:", err.message);
+    console.error("Contact error:", err);
     res.status(500).json({ error: "Failed to send message" });
   }
 });
 
 export default router;
+
