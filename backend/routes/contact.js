@@ -100,7 +100,9 @@ router.post("/", async (req, res) => {
       html: `
         <p>Hi ${escapeHtml(name)},</p>
         <p>Thanks for contacting <b>Buildara Group</b>.</p>
-        <p>We received your request and will contact you shortly.</p>
+        <p>We have successfully received your inquiry. A member of our team will review
+         your request and get back to you within <strong>48 business hours</strong>.
+        </p>
         <p>— Buildara Group</p>
       `,
     });
