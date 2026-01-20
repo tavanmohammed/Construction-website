@@ -1,5 +1,5 @@
+// backend/routes/contact.js
 import express from "express";
-
 
 const router = express.Router();
 
@@ -27,6 +27,9 @@ function isSkipEmail() {
   return String(process.env.SKIP_EMAIL || "").toLowerCase().trim() === "true";
 }
 
+/* -----------------------
+   Mailgun API sender (NO form-data)
+------------------------ */
 async function sendMailgun({ to, subject, html, replyTo }) {
   const {
     MAILGUN_API_KEY,
@@ -40,9 +43,7 @@ async function sendMailgun({ to, subject, html, replyTo }) {
   if (!MAILGUN_API_KEY) missing.push("MAILGUN_API_KEY");
   if (!MAILGUN_DOMAIN) missing.push("MAILGUN_DOMAIN");
   if (!FROM_EMAIL) missing.push("FROM_EMAIL");
-  if (missing.length) {
-    throw new Error(`Mailgun not configured (${missing.join(", ")})`);
-  }
+  if (missing.length) throw new Error(`Mailgun not configured (${missing.join(", ")})`);
 
   const apiBase =
     MAILGUN_REGION.toLowerCase() === "eu"
@@ -51,13 +52,13 @@ async function sendMailgun({ to, subject, html, replyTo }) {
 
   const fromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
 
-  const form = new FormData();
-  form.append("from", `"${fromName}" <${FROM_EMAIL}>`);
-  form.append("to", to);
-  form.append("subject", subject);
-  form.append("html", html);
-
-  if (replyTo) form.append("h:Reply-To", cleanHeaderValue(replyTo));
+  // Mailgun accepts x-www-form-urlencoded
+  const params = new URLSearchParams();
+  params.set("from", `"${fromName}" <${FROM_EMAIL}>`);
+  params.set("to", to);
+  params.set("subject", subject);
+  params.set("html", html);
+  if (replyTo) params.set("h:Reply-To", cleanHeaderValue(replyTo));
 
   const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64");
 
@@ -65,15 +66,13 @@ async function sendMailgun({ to, subject, html, replyTo }) {
     method: "POST",
     headers: {
       Authorization: `Basic ${auth}`,
-      ...form.getHeaders(),
+      "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: form,
+    body: params.toString(),
   });
 
   const text = await resp.text();
-  if (!resp.ok) {
-    throw new Error(`Mailgun error (${resp.status}): ${text}`);
-  }
+  if (!resp.ok) throw new Error(`Mailgun error (${resp.status}): ${text}`);
   return text;
 }
 
@@ -82,20 +81,12 @@ async function sendMailgun({ to, subject, html, replyTo }) {
 ------------------------ */
 router.post("/", async (req, res) => {
   try {
-    const {
-      fullName,
-      email,
-      phone,
-      service,
-      city,
-      message,
-      website, // honeypot
-    } = req.body || {};
+    const { fullName, email, phone, service, city, message, website } = req.body || {};
 
     // Honeypot
     if (website) return res.status(200).json({ ok: true });
 
-    // TEMP skip
+    // Skip sending if enabled
     if (isSkipEmail()) {
       console.log("CONTACT SUBMISSION (SKIP_EMAIL):", {
         time: new Date().toISOString(),
@@ -126,11 +117,10 @@ router.post("/", async (req, res) => {
     const safeMessage = escapeHtml(normalize(message) || "N/A").replace(/\n/g, "<br/>");
 
     const { ADMIN_EMAIL, BRAND_NAME } = process.env;
-    if (!ADMIN_EMAIL) {
-      return res.status(500).json({ error: "ADMIN_EMAIL is not configured." });
-    }
+    if (!ADMIN_EMAIL) return res.status(500).json({ error: "ADMIN_EMAIL is not configured." });
 
     const safeNameHeader = cleanHeaderValue(name);
+    const safeFromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
 
     // 1) Email to Admin
     await sendMailgun({
@@ -148,8 +138,7 @@ router.post("/", async (req, res) => {
       `,
     });
 
-    
-    const safeFromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
+    // 2) Auto-reply to User
     await sendMailgun({
       to: userEmail,
       subject: "We received your request",
