@@ -1,10 +1,11 @@
 // backend/routes/contact.js
 import express from "express";
+import nodemailer from "nodemailer";
 
 const router = express.Router();
 
 /* -----------------------
-   Helpers
+   Helpers (safe email body)
 ------------------------ */
 function escapeHtml(str = "") {
   return String(str)
@@ -27,53 +28,17 @@ function isSkipEmail() {
   return String(process.env.SKIP_EMAIL || "").toLowerCase().trim() === "true";
 }
 
-/* -----------------------
-   Mailgun API sender (NO form-data)
------------------------- */
-async function sendMailgun({ to, subject, html, replyTo }) {
-  const {
-    MAILGUN_API_KEY,
-    MAILGUN_DOMAIN,
-    MAILGUN_REGION = "us",
-    FROM_EMAIL,
-    BRAND_NAME,
-  } = process.env;
+function boolFromEnv(v, fallback = false) {
+  if (v === undefined || v === null) return fallback;
+  const s = String(v).toLowerCase().trim();
+  if (["true", "1", "yes", "y"].includes(s)) return true;
+  if (["false", "0", "no", "n"].includes(s)) return false;
+  return fallback;
+}
 
-  const missing = [];
-  if (!MAILGUN_API_KEY) missing.push("MAILGUN_API_KEY");
-  if (!MAILGUN_DOMAIN) missing.push("MAILGUN_DOMAIN");
-  if (!FROM_EMAIL) missing.push("FROM_EMAIL");
-  if (missing.length) throw new Error(`Mailgun not configured (${missing.join(", ")})`);
-
-  const apiBase =
-    MAILGUN_REGION.toLowerCase() === "eu"
-      ? "https://api.eu.mailgun.net"
-      : "https://api.mailgun.net";
-
-  const fromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
-
-  // Mailgun accepts x-www-form-urlencoded
-  const params = new URLSearchParams();
-  params.set("from", `"${fromName}" <${FROM_EMAIL}>`);
-  params.set("to", to);
-  params.set("subject", subject);
-  params.set("html", html);
-  if (replyTo) params.set("h:Reply-To", cleanHeaderValue(replyTo));
-
-  const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64");
-
-  const resp = await fetch(`${apiBase}/v3/${MAILGUN_DOMAIN}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  });
-
-  const text = await resp.text();
-  if (!resp.ok) throw new Error(`Mailgun error (${resp.status}): ${text}`);
-  return text;
+function intFromEnv(v, fallback) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 /* -----------------------
@@ -81,12 +46,20 @@ async function sendMailgun({ to, subject, html, replyTo }) {
 ------------------------ */
 router.post("/", async (req, res) => {
   try {
-    const { fullName, email, phone, service, city, message, website } = req.body || {};
+    const {
+      fullName,
+      email,
+      phone,
+      service,
+      city,
+      message,
+      website, // honeypot
+    } = req.body || {};
 
-    // Honeypot
+    // Honeypot: if filled, treat as bot and "succeed"
     if (website) return res.status(200).json({ ok: true });
 
-    // Skip sending if enabled
+    // TEMP: allow skipping email sending
     if (isSkipEmail()) {
       console.log("CONTACT SUBMISSION (SKIP_EMAIL):", {
         time: new Date().toISOString(),
@@ -107,6 +80,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Full name and email are required." });
     }
 
+    // Minimal email check
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
       return res.status(400).json({ error: "Invalid email address." });
     }
@@ -116,17 +90,61 @@ router.post("/", async (req, res) => {
     const safeCity = escapeHtml(normalize(city) || "N/A");
     const safeMessage = escapeHtml(normalize(message) || "N/A").replace(/\n/g, "<br/>");
 
-    const { ADMIN_EMAIL, BRAND_NAME } = process.env;
-    if (!ADMIN_EMAIL) return res.status(500).json({ error: "ADMIN_EMAIL is not configured." });
+    // Env vars
+    const {
+      SMTP_HOST,
+      SMTP_PORT,
+      SMTP_SECURE, // "true" for 465 SSL, "false" for 587 STARTTLS
+      SMTP_USER,
+      SMTP_PASS,
+      ADMIN_EMAIL,
+      FROM_EMAIL,
+      BRAND_NAME,
+    } = process.env;
 
-    const safeNameHeader = cleanHeaderValue(name);
+    // Fail fast (don’t hang)
+    const missing = [];
+    if (!SMTP_HOST) missing.push("SMTP_HOST");
+    if (!SMTP_PORT) missing.push("SMTP_PORT");
+    if (!SMTP_USER) missing.push("SMTP_USER");
+    if (!SMTP_PASS) missing.push("SMTP_PASS");
+    if (!ADMIN_EMAIL) missing.push("ADMIN_EMAIL");
+    if (!FROM_EMAIL) missing.push("FROM_EMAIL");
+
+    if (missing.length) {
+      return res.status(500).json({
+        error: `Email server is not configured (${missing.join(", ")}).`,
+      });
+    }
+
+    const port = intFromEnv(SMTP_PORT, 587);
+    const secure = boolFromEnv(SMTP_SECURE, port === 465); // sensible default
+
+    const transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port,
+      secure, // true for 465, false for 587/STARTTLS
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+
+      // For STARTTLS on 587, this ensures TLS is used
+      requireTLS: !secure,
+
+      // Prevent infinite “Sending…”
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+    });
+
     const safeFromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
+    const safeReplyTo = cleanHeaderValue(userEmail);
+    const safeNameHeader = cleanHeaderValue(name);
 
     // 1) Email to Admin
-    await sendMailgun({
+    await transporter.sendMail({
+      from: `"Website Contact" <${FROM_EMAIL}>`,
       to: ADMIN_EMAIL,
       subject: `New Contact Request: ${safeNameHeader}`,
-      replyTo: userEmail,
+      replyTo: safeReplyTo,
       html: `
         <h2>New Contact Form Submission</h2>
         <p><b>Name:</b> ${escapeHtml(name)}</p>
@@ -139,12 +157,15 @@ router.post("/", async (req, res) => {
     });
 
     // 2) Auto-reply to User
-    await sendMailgun({
+    await transporter.sendMail({
+      from: `"${safeFromName}" <${FROM_EMAIL}>`,
       to: userEmail,
       subject: "We received your request",
       html: `
         <p>Hi ${escapeHtml(name)},</p>
-        <p>Thanks for reaching out to ${escapeHtml(safeFromName)}. We’ve received your request and will contact you within 48 business hours.</p>
+        <p>Thanks for reaching out to ${escapeHtml(
+          safeFromName
+        )}. We’ve received your request and will contact you shortly.</p>
         <p><b>Your details:</b></p>
         <ul>
           <li>Service: ${safeService}</li>
@@ -157,7 +178,15 @@ router.post("/", async (req, res) => {
 
     return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("Contact email send error:", err?.message || err);
+    // Show useful error info in logs
+    console.error("Contact email send error:", {
+      message: err?.message,
+      code: err?.code,
+      command: err?.command,
+      response: err?.response,
+      responseCode: err?.responseCode,
+      stack: err?.stack,
+    });
     return res.status(500).json({ error: "Failed to send email." });
   }
 });
