@@ -1,11 +1,10 @@
-// backend/routes/contact.js
 import express from "express";
-import nodemailer from "nodemailer";
+import FormData from "form-data";
 
 const router = express.Router();
 
 /* -----------------------
-   Helpers (safe email body)
+   Helpers
 ------------------------ */
 function escapeHtml(str = "") {
   return String(str)
@@ -25,17 +24,63 @@ function normalize(str = "") {
 }
 
 function isSkipEmail() {
-  // Set SKIP_EMAIL=true in Render env vars when you want to disable sending
-  return String(process.env.SKIP_EMAIL || "")
-    .toLowerCase()
-    .trim() === "true";
+  return String(process.env.SKIP_EMAIL || "").toLowerCase().trim() === "true";
+}
+
+async function sendMailgun({ to, subject, html, replyTo }) {
+  const {
+    MAILGUN_API_KEY,
+    MAILGUN_DOMAIN,
+    MAILGUN_REGION = "us",
+    FROM_EMAIL,
+    BRAND_NAME,
+  } = process.env;
+
+  const missing = [];
+  if (!MAILGUN_API_KEY) missing.push("MAILGUN_API_KEY");
+  if (!MAILGUN_DOMAIN) missing.push("MAILGUN_DOMAIN");
+  if (!FROM_EMAIL) missing.push("FROM_EMAIL");
+  if (missing.length) {
+    throw new Error(`Mailgun not configured (${missing.join(", ")})`);
+  }
+
+  const apiBase =
+    MAILGUN_REGION.toLowerCase() === "eu"
+      ? "https://api.eu.mailgun.net"
+      : "https://api.mailgun.net";
+
+  const fromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
+
+  const form = new FormData();
+  form.append("from", `"${fromName}" <${FROM_EMAIL}>`);
+  form.append("to", to);
+  form.append("subject", subject);
+  form.append("html", html);
+
+  if (replyTo) form.append("h:Reply-To", cleanHeaderValue(replyTo));
+
+  const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64");
+
+  const resp = await fetch(`${apiBase}/v3/${MAILGUN_DOMAIN}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      ...form.getHeaders(),
+    },
+    body: form,
+  });
+
+  const text = await resp.text();
+  if (!resp.ok) {
+    throw new Error(`Mailgun error (${resp.status}): ${text}`);
+  }
+  return text;
 }
 
 /* -----------------------
    POST /api/contact
 ------------------------ */
 router.post("/", async (req, res) => {
-  // Always respond; never hang
   try {
     const {
       fullName,
@@ -47,33 +92,30 @@ router.post("/", async (req, res) => {
       website, // honeypot
     } = req.body || {};
 
-    // Honeypot: if filled, treat as bot and "succeed"
+    // Honeypot
     if (website) return res.status(200).json({ ok: true });
-     //  TEMP: don't send emails (Render can't reach GoDaddy SMTP)
-if (isSkipEmail()) {
-  console.log("CONTACT SUBMISSION (SKIP_EMAIL):", {
-    time: new Date().toISOString(),
-    fullName,
-    email,
-    phone,
-    service,
-    city,
-    message,
-  });
-  return res.status(200).json({ ok: true });
-}
 
+    // TEMP skip
+    if (isSkipEmail()) {
+      console.log("CONTACT SUBMISSION (SKIP_EMAIL):", {
+        time: new Date().toISOString(),
+        fullName,
+        email,
+        phone,
+        service,
+        city,
+        message,
+      });
+      return res.status(200).json({ ok: true });
+    }
 
     const name = normalize(fullName);
     const userEmail = normalize(email);
 
     if (!name || !userEmail) {
-      return res
-        .status(400)
-        .json({ error: "Full name and email are required." });
+      return res.status(400).json({ error: "Full name and email are required." });
     }
 
-    // Minimal email check
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
       return res.status(400).json({ error: "Invalid email address." });
     }
@@ -81,60 +123,20 @@ if (isSkipEmail()) {
     const safePhone = escapeHtml(normalize(phone) || "N/A");
     const safeService = escapeHtml(normalize(service) || "N/A");
     const safeCity = escapeHtml(normalize(city) || "N/A");
-    const safeMessage = escapeHtml(normalize(message) || "N/A").replace(
-      /\n/g,
-      "<br/>"
-    );
+    const safeMessage = escapeHtml(normalize(message) || "N/A").replace(/\n/g, "<br/>");
 
-    // Env vars
-    const {
-      SMTP_HOST,
-      SMTP_PORT,
-      SMTP_SECURE,
-      SMTP_USER,
-      SMTP_PASS,
-      ADMIN_EMAIL,
-      FROM_EMAIL,
-      BRAND_NAME,
-    } = process.env;
-
-    // Fail fast (don’t hang)
-    const missing = [];
-    if (!SMTP_HOST) missing.push("SMTP_HOST");
-    if (!SMTP_PORT) missing.push("SMTP_PORT");
-    if (!SMTP_USER) missing.push("SMTP_USER");
-    if (!SMTP_PASS) missing.push("SMTP_PASS");
-    if (!ADMIN_EMAIL) missing.push("ADMIN_EMAIL");
-    if (!FROM_EMAIL) missing.push("FROM_EMAIL");
-
-    if (missing.length) {
-      return res.status(500).json({
-        error: `Email server is not configured (${missing.join(", ")}).`,
-      });
+    const { ADMIN_EMAIL, BRAND_NAME } = process.env;
+    if (!ADMIN_EMAIL) {
+      return res.status(500).json({ error: "ADMIN_EMAIL is not configured." });
     }
 
-    const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: Number(SMTP_PORT),
-      secure: String(SMTP_SECURE).toLowerCase() === "true",
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-
-      //  prevents infinite “Sending…”
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-    });
-
-    const safeFromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
-    const safeReplyTo = cleanHeaderValue(userEmail);
     const safeNameHeader = cleanHeaderValue(name);
 
     // 1) Email to Admin
-    await transporter.sendMail({
-      from: `"Website Contact" <${FROM_EMAIL}>`,
+    await sendMailgun({
       to: ADMIN_EMAIL,
       subject: `New Contact Request: ${safeNameHeader}`,
-      replyTo: safeReplyTo,
+      replyTo: userEmail,
       html: `
         <h2>New Contact Form Submission</h2>
         <p><b>Name:</b> ${escapeHtml(name)}</p>
@@ -146,14 +148,14 @@ if (isSkipEmail()) {
       `,
     });
 
-    // 2) Auto-reply to User (optional, but nice)
-    await transporter.sendMail({
-      from: `"${safeFromName}" <${FROM_EMAIL}>`,
+    
+    const safeFromName = cleanHeaderValue(BRAND_NAME || "Buildara Group");
+    await sendMailgun({
       to: userEmail,
       subject: "We received your request",
       html: `
         <p>Hi ${escapeHtml(name)},</p>
-        <p>Thanks for reaching out to Buildara Group. We’ve received your request and will contact you within 48 business hours.</p>
+        <p>Thanks for reaching out to ${escapeHtml(safeFromName)}. We’ve received your request and will contact you within 48 business hours.</p>
         <p><b>Your details:</b></p>
         <ul>
           <li>Service: ${safeService}</li>
@@ -166,7 +168,7 @@ if (isSkipEmail()) {
 
     return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("Contact email send error:", err);
+    console.error("Contact email send error:", err?.message || err);
     return res.status(500).json({ error: "Failed to send email." });
   }
 });
