@@ -162,9 +162,9 @@ const PROJECTS = [
       "/images/proj4b.jpeg",
       "/images/proj4c.jpeg",
       "/images/proj4d.jpeg",
-      "/images/proj4e.jpg",
-      "/images/proj4f.jpg",
-      "/images/proj4g.jpg",
+      "/images/proj4e.jpeg",
+      "/images/proj4f.jpeg",
+      "/images/proj4g.jpeg",
       "/images/proj4h.jpeg",
     ],
     videos: [
