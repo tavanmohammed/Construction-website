@@ -164,7 +164,6 @@ const PROJECTS = [
       "/images/proj4d.jpeg",
       "/images/proj4e.jpg",
       "/images/proj4f.jpg",
-      "/images/proj4g.jpg",
       "/images/proj4h.jpeg",
     ],
     videos: [
